@@ -22,7 +22,12 @@ class ViewController: UIViewController {
         // 웹뷰의 크기를 자동으로 조정하도록 설정합니다.
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
-        webView.isInspectable = true // 디버깅을 위해 웹뷰를 검사할 수 있도록 설정합니다.
+        // 디버깅을 위해 웹뷰를 검사할 수 있도록 설정합니다.
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        } else {
+            // Fallback on earlier versions
+        }
         
         // 웹뷰를 상단 하단 Safe Area 에 맞춰 배치합니다.
         webView.translatesAutoresizingMaskIntoConstraints = false

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2421DA722E15F82E00D7E4FD /* LogMacro in Frameworks */ = {isa = PBXBuildFile; productRef = 2421DA712E15F82E00D7E4FD /* LogMacro */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		249BEE672CBF48480023FA8F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2421DA722E15F82E00D7E4FD /* LogMacro in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,12 +124,14 @@
 			buildRules = (
 			);
 			dependencies = (
+				2421DA742E15F8AD00D7E4FD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				249BEE522CBF48460023FA8F /* SBSample */,
 			);
 			name = SBSample;
 			packageProductDependencies = (
+				2421DA712E15F82E00D7E4FD /* LogMacro */,
 			);
 			productName = SBSample;
 			productReference = 249BEE502CBF48460023FA8F /* SBSample.app */;
@@ -209,6 +216,9 @@
 			);
 			mainGroup = 249BEE472CBF48460023FA8F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 249BEE512CBF48460023FA8F /* Products */;
 			projectDirPath = "";
@@ -270,6 +280,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2421DA742E15F8AD00D7E4FD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 2421DA732E15F8AD00D7E4FD /* LogMacro */;
+		};
 		249BEE682CBF48480023FA8F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 249BEE4F2CBF48460023FA8F /* SBSample */;
@@ -570,6 +584,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dsoft2025/LogMacro";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.5.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2421DA712E15F82E00D7E4FD /* LogMacro */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */;
+			productName = LogMacro;
+		};
+		2421DA732E15F8AD00D7E4FD /* LogMacro */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */;
+			productName = LogMacro;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 249BEE482CBF48460023FA8F /* Project object */;
 }

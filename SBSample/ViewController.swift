@@ -7,7 +7,9 @@
 
 import UIKit
 import WebKit
+import LogMacro
 
+@Logging
 class ViewController: UIViewController {
 
     override func viewDidLoad() {
@@ -28,6 +30,9 @@ class ViewController: UIViewController {
         } else {
             // Fallback on earlier versions
         }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
         
         // 웹뷰를 상단 하단 Safe Area 에 맞춰 배치합니다.
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -59,12 +64,12 @@ class ViewController: UIViewController {
 extension ViewController: WKNavigationDelegate {
     // 웹 페이지 로딩이 완료되면 호출됩니다.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        print("웹 페이지 로딩 완료")
+        #mlog("웹 페이지 로딩 완료")
     }
     
     // 웹 페이지 로딩 중 오류가 발생하면 호출됩니다.
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("웹 페이지 로딩 실패: \(error.localizedDescription)")
+        #mlog("웹 페이지 로딩 실패: \(error.localizedDescription)")
     }
 }
 
@@ -79,6 +84,18 @@ extension ViewController: WKUIDelegate {
         }
         // 여기서는 새 창을 열지 않고 nil을 반환하여 기본 동작을 방지합니다.
         return nil
+    }
+}
+
+extension ViewController {
+    @objc
+    func keyboardWillShow(_ notification: Notification) {
+        #mlog("keyboardWillShow")
+    }
+    
+    @objc
+    func keyboardWillHide(_ notification: Notification) {
+        #log("keyboardWillHide")
     }
 }
 

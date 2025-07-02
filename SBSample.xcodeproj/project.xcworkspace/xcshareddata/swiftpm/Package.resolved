@@ -1,0 +1,24 @@
+{
+  "originHash" : "9eac168597861ef8cdf1b901b9f6c478da342c51fc15dcaecb573427536a5637",
+  "pins" : [
+    {
+      "identity" : "logmacro",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dsoft2025/LogMacro",
+      "state" : {
+        "revision" : "190c1e76632a9c6b1bf0785519f72df872486934",
+        "version" : "0.5.3"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    }
+  ],
+  "version" : 3
+}

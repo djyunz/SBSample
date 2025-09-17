@@ -5,7 +5,6 @@
 //  Created by Durk Jae Yun on 9/17/25.
 //
 
-
 import Foundation
 import LogMacro
 import UniformTypeIdentifiers
@@ -21,8 +20,8 @@ final class FileDownloadService: NSObject, URLSessionDownloadDelegate {
 
     private lazy var session: URLSession = {
         let config: URLSessionConfiguration = URLSessionConfiguration.background(withIdentifier: "fileDownload")
-        config.isDiscretionary = true // 시스템 최적화 허용 - 베터리, 네트워크 상태, 전원 연결 상태등을 고려한 상황 판단하여 실행
-        config.sessionSendsLaunchEvents = true // 앱이 종료되었거나 백그라운드 상태일 경우에도 URLSession 이벤트 발생시 시스템이 앱 자동 실행
+        config.isDiscretionary = true
+        config.sessionSendsLaunchEvents = true
         return URLSession(configuration: config, delegate: self, delegateQueue: .main)
     }()
 
@@ -32,9 +31,13 @@ final class FileDownloadService: NSObject, URLSessionDownloadDelegate {
         super.init()
     }
 
-    func downloadFile(url: URL) -> AsyncThrowingStream<DownloadStatus, Error> {
+    func downloadFile(url: URL, expectedContentType: String? = nil) -> AsyncThrowingStream<DownloadStatus, Error> {
         return AsyncThrowingStream { continuation in
-            let task = session.downloadTask(with: url)
+            var request = URLRequest(url: url)
+            if let expectedContentType = expectedContentType {
+                request.setValue(expectedContentType, forHTTPHeaderField: "Accept")
+            }
+            let task = session.downloadTask(with: request)
             continuations[task.taskIdentifier] = continuation
             task.resume()
         }
@@ -44,6 +47,33 @@ final class FileDownloadService: NSObject, URLSessionDownloadDelegate {
 extension FileDownloadService {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         #mlog("Download finished for task \(downloadTask.taskIdentifier) at: \(location)")
+
+        guard let response = downloadTask.response as? HTTPURLResponse else {
+            let error = NSError(domain: "DownloadError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+            finishWithError(error, for: downloadTask)
+            return
+        }
+
+        guard (200...299).contains(response.statusCode) else {
+            let error = NSError(domain: "HTTPError", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: "Download failed with status code: \(response.statusCode)"])
+            finishWithError(error, for: downloadTask)
+            return
+        }
+        
+        if response.expectedContentLength == 0 {
+            let error = NSError(domain: "DownloadError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Content-Length is 0"])
+            finishWithError(error, for: downloadTask)
+            return
+        }
+
+        // expectedContentType이 nil이 아닐 경우에만 Content-Type 검사
+        if let expectedContentType = downloadTask.originalRequest?.value(forHTTPHeaderField: "Accept"),
+           let mimeType = response.mimeType, !mimeType.contains(expectedContentType) {
+            let error = NSError(domain: "DownloadError", code: -3, userInfo: [NSLocalizedDescriptionKey: "Content-Type mismatch. Expected \(expectedContentType) but got \(mimeType)"])
+            finishWithError(error, for: downloadTask)
+            return
+        }
+
         moveDownloadedFile(downloadTask: downloadTask, downloadedLocation: location)
     }
 
@@ -54,28 +84,27 @@ extension FileDownloadService {
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let continuation = continuations[task.taskIdentifier] else {
-            #mlog("Continuation not found for task \(task.taskIdentifier)")
-            return
-        }
         if let error = error {
             #mlog("Download Error for task \(task.taskIdentifier): \(error.localizedDescription)")
-            continuation.finish(throwing: error)
+            finishWithError(error, for: task)
         } else {
-            // This is called after didFinishDownloadingTo, so we just finish the stream here.
-            continuation.finish()
+            continuations[task.taskIdentifier]?.finish()
+            continuations.removeValue(forKey: task.taskIdentifier)
         }
+    }
+    
+    private func finishWithError(_ error: Error, for task: URLSessionTask) {
+        continuations[task.taskIdentifier]?.finish(throwing: error)
         continuations.removeValue(forKey: task.taskIdentifier)
     }
 }
 
-// 파일 Management 관련 코드 분리
 private extension FileDownloadService {
     func moveDownloadedFile(downloadTask: URLSessionDownloadTask, downloadedLocation: URL) {
         let fileManager = FileManager.default
         guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            continuations[downloadTask.taskIdentifier]?.finish(throwing: NSError(domain: "Invalid File Document Directory", code: -1))
-            continuations.removeValue(forKey: downloadTask.taskIdentifier)
+            let error = NSError(domain: "FileError", code: -100, userInfo: [NSLocalizedDescriptionKey: "Could not find documents directory"])
+            finishWithError(error, for: downloadTask)
             return
         }
 
@@ -99,8 +128,7 @@ private extension FileDownloadService {
             try fileManager.moveItem(at: downloadedLocation, to: destinationURL)
             continuations[downloadTask.taskIdentifier]?.yield(.finished(destinationURL))
         } catch {
-            continuations[downloadTask.taskIdentifier]?.finish(throwing: error)
-            continuations.removeValue(forKey: downloadTask.taskIdentifier)
+            finishWithError(error, for: downloadTask)
         }
     }
 }

@@ -30,7 +30,8 @@ final class FileDownloadViewModel: ObservableObject {
     private func processDownload(for item: DownloadItem) async {
         await MainActor.run { item.state = .downloading }
         do {
-            let stream = FileDownloadService.shared.downloadFile(url: item.url)
+            let expectedContentType = contentType(for: item.url)
+            let stream = FileDownloadService.shared.downloadFile(url: item.url, expectedContentType: expectedContentType)
             for try await event in stream {
                 switch event {
                 case let .progress(value):
@@ -46,6 +47,19 @@ final class FileDownloadViewModel: ObservableObject {
         } catch {
             #mlog("Download failed for \(item.url.absoluteString): \(error)")
             await MainActor.run { item.state = .failed(error) }
+        }
+    }
+    
+    private func contentType(for url: URL) -> String? {
+        switch url.pathExtension.lowercased() {
+        case "pdf":
+            return "application/pdf"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        default:
+            return nil
         }
     }
 }

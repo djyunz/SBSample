@@ -58,7 +58,8 @@ class ViewController: UIViewController {
         webView.allowsBackForwardNavigationGestures = true
 
         // 웹 페이지를 로드합니다.
-        if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGift.pdf") {
+//        if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGiftdfsdfs.pdf") {
+        if let url = URL(string:"https://www.shillahotels.com/membership/resources/images/download/shilla_rewards_guide_ko.pdf") {
             let request = URLRequest(url: url)
             webView.load(request)
         }
@@ -120,7 +121,7 @@ extension ViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
         #mlog("decidePolicyFor navigationAction: \(navigationAction)")
         if let urlString = navigationAction.request.url?.absoluteString,
-           urlString.contains("firsthand/download.do") {
+           urlString.contains("firsthand/download.do") || urlString.contains("/download/") {
             // ViewController가 소유한 viewModel의 메서드를 직접 호출합니다.
             viewModel.startDownload(urlString: urlString)
             return .cancel

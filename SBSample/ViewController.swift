@@ -100,6 +100,7 @@ class ViewController: UIViewController {
         fileDownloadViewController.view.snp.makeConstraints { make in
             make.top.equalTo(self.view.safeAreaLayoutGuide).offset(60)
             make.bottom.equalTo(self.view.safeAreaLayoutGuide).offset(-50)
+            make.leading.trailing.equalTo(self.view.safeAreaLayoutGuide)
             make.centerX.equalTo(self.view.safeAreaLayoutGuide)
         }
 

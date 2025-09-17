@@ -24,7 +24,6 @@ class ViewController: UIViewController {
 
         // WKWebView 를 self.view 에 추가 합니다.
         let configuration = WKWebViewConfiguration()
-        configuration.processPool = WKProcessPool()
         let webView = WKWebView(frame: .zero, configuration: configuration)
         view.addSubview(webView)
 

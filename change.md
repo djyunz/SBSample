@@ -39,3 +39,19 @@
   - `FileDownloadViewModel`의 인스턴스를 직접 생성하고 소유합니다.
   - `viewDidLoad`에서 `FileDownloadView`를 초기화할 때 이 `ViewModel`을 전달합니다.
   - `WKNavigationDelegate`에서 `ViewModel`의 `startDownload` 메서드를 직접 호출하여 데이터 흐름을 단순화하고 안정성을 높였습니다.
+
+## 3. 경고 수정 및 다운로드 검증 로직 강화
+
+### `WKProcessPool` Deprecation 경고 해결 (Commit: `06bf2c3`)
+
+- **문제 제기:** `WKProcessPool`이 iOS 15.0부터 deprecated 되었다는 경고가 발생했습니다.
+- **해결:** `ViewController.swift`에서 불필해진 `WKProcessPool` 인스턴스 생성 코드를 제거하여 경고를 해결했습니다.
+
+### 다운로드 실패 케이스 처리 강화 (Commit: `99d9615`)
+
+- **문제 제기:** 존재하지 않는 URL로 다운로드 시도 시, 서버가 404 에러 페이지(HTML)를 정상적으로 응답하면 다운로드가 '성공'으로 처리되는 문제를 지적했습니다. 또한, `Content-Type` 검사를 옵션으로 두고 다른 검증 방법을 추가로 요청했습니다.
+- **해결 과정:**
+    1.  **`Content-Length` 검사:** `FileDownloadService`의 다운로드 완료 시점에서 응답 헤더의 `Content-Length`가 0인 경우, 유효한 파일이 아닌 것으로 간주하여 에러 처리하는 로직을 추가했습니다.
+    2.  **`Content-Type` 옵셔널 검사:** `downloadFile` 함수가 `expectedContentType`을 옵셔널 파라미터로 받도록 수정했습니다.
+    3.  `FileDownloadViewModel`에서는 URL의 확장자를 기반으로 `expectedContentType`을 유추하여 `FileDownloadService`로 전달합니다.
+    4.  `FileDownloadService`는 이 `expectedContentType` 값이 존재할 경우에만 실제 응답의 `Content-Type`과 일치하는지 검사하여, 일치하지 않으면 에러 처리합니다.

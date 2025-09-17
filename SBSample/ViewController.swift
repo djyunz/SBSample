@@ -5,44 +5,49 @@
 //  Created by Durk Jae Yun on 10/16/24.
 //
 
+import Combine
+import LogMacro
+import SnapKit
+import SwiftUI
 import UIKit
 import WebKit
-import LogMacro
 
 @Logging
 class ViewController: UIViewController {
+    let data: HeartData = .init(beatsPerMinute: 120)
+
+    private var viewModel = FileDownloadViewModel()
+    private var cancellables: Set<AnyCancellable> = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // WKWebView 를 self.view 에 추가 합니다.
         let configuration = WKWebViewConfiguration()
         configuration.processPool = WKProcessPool()
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        self.view.addSubview(webView)
-        
+        view.addSubview(webView)
+
         // 웹뷰의 크기를 자동으로 조정하도록 설정합니다.
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        
+
         // 디버깅을 위해 웹뷰를 검사할 수 있도록 설정합니다.
         if #available(iOS 16.4, *) {
             webView.isInspectable = true
-        } else {
-            // Fallback on earlier versions
         }
-        
+
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
-        
+
         // 웹뷰를 상단 하단 Safe Area 에 맞춰 배치합니다.
         webView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            webView.topAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.trailingAnchor)
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
         ])
-        
+
         // 웹뷰 페이지 링크로 이동이 가능하도록 설정합니다.
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -52,12 +57,69 @@ class ViewController: UIViewController {
         webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         // 웹뷰에서 뒤로가기, 앞으로가기 제스처를 허용합니다.
         webView.allowsBackForwardNavigationGestures = true
-        
+
+        let progressView: UIProgressView = {
+            let view = UIProgressView()
+            view.backgroundColor = .orange
+            view.progress = 0.1
+            view.progressViewStyle = .bar
+            return view
+        }()
+        view.addSubview(progressView)
+        progressView.snp.makeConstraints { make in
+            make.top.equalTo(self.view.safeAreaLayoutGuide).offset(55)
+            make.leading.trailing.equalTo(self.view.safeAreaLayoutGuide)
+        }
+
+        viewModel.$progress.sink { progress in
+            progressView.setProgress(Float(progress), animated: true)
+        }.store(in: &cancellables)
+
         // 웹 페이지를 로드합니다.
-        if let url = URL(string: "https://storage-access-api-demo.glitch.me/") {
+        if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGift.pdf") {
             let request = URLRequest(url: url)
             webView.load(request)
         }
+
+        let swiftUIView = SwiftUIView().background(Color.red).onTapGesture {
+            let nextVC = UIHostingController(rootView: SwiftUIView().background(Color.blue))
+            self.present(nextVC, animated: true)
+        }
+        let swiftUIViewController = UIHostingController(rootView: swiftUIView)
+        addChild(swiftUIViewController)
+        view.addSubview(swiftUIViewController.view)
+        swiftUIViewController.view.backgroundColor = .cyan
+        swiftUIViewController.view.snp.makeConstraints { make in
+            make.top.equalTo(self.view.safeAreaLayoutGuide)
+            make.height.equalTo(50)
+            make.centerX.equalTo(self.view.safeAreaLayoutGuide)
+        }
+
+        let heartRateView = HeartRateView(data: data).background(Color.brown).onTapGesture { [weak self] in
+            self?.data.beatsPerMinute = Int.random(in: 60 ... 120)
+        }
+        let heartRateViewController = UIHostingController(rootView: heartRateView)
+        addChild(heartRateViewController)
+        view.addSubview(heartRateViewController.view)
+        heartRateViewController.view.backgroundColor = .yellow
+        heartRateViewController.view.snp.makeConstraints { make in
+            make.height.equalTo(50)
+            make.bottom.equalTo(self.view.safeAreaLayoutGuide)
+            make.centerX.equalTo(self.view.safeAreaLayoutGuide)
+        }
+
+        let fileDownloadView = FileDownloadView().background(Color.green)
+        let fileDownloadViewController = UIHostingController(rootView: fileDownloadView)
+        self.addChild(fileDownloadViewController)
+        self.view.addSubview(fileDownloadViewController.view)
+        fileDownloadViewController.view.backgroundColor = .orange
+        fileDownloadViewController.view.snp.makeConstraints { make in
+            make.top.equalTo(self.view.safeAreaLayoutGuide).offset(60)
+            make.bottom.equalTo(self.view.safeAreaLayoutGuide).offset(-50)
+            make.centerX.equalTo(self.view.safeAreaLayoutGuide)
+        }
+
+        #mlog("뷰컨트롤러 로드 완료")
     }
 }
 
@@ -66,10 +128,21 @@ extension ViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         #mlog("웹 페이지 로딩 완료")
     }
-    
+
     // 웹 페이지 로딩 중 오류가 발생하면 호출됩니다.
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         #mlog("웹 페이지 로딩 실패: \(error.localizedDescription)")
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        #mlog("decidePolicyFor navigationAction: \(navigationAction)")
+        if true == navigationAction.targetFrame?.isMainFrame {
+            if (navigationAction.request.url?.absoluteString.contains("firsthand/download.do")) ?? false {
+                viewModel.startDownload(urlString: navigationAction.request.url?.absoluteString ?? "")
+                return .cancel
+            }
+        }
+        return .allow
     }
 }
 
@@ -92,10 +165,9 @@ extension ViewController {
     func keyboardWillShow(_ notification: Notification) {
         #mlog("keyboardWillShow")
     }
-    
+
     @objc
     func keyboardWillHide(_ notification: Notification) {
         #log("keyboardWillHide")
     }
 }
-

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2421DA722E15F82E00D7E4FD /* LogMacro in Frameworks */ = {isa = PBXBuildFile; productRef = 2421DA712E15F82E00D7E4FD /* LogMacro */; };
+		24DA63382E7A7A93005B0C1B /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 24DA63372E7A7A93005B0C1B /* SnapKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2421DA722E15F82E00D7E4FD /* LogMacro in Frameworks */,
+				24DA63382E7A7A93005B0C1B /* SnapKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,6 +134,7 @@
 			name = SBSample;
 			packageProductDependencies = (
 				2421DA712E15F82E00D7E4FD /* LogMacro */,
+				24DA63372E7A7A93005B0C1B /* SnapKit */,
 			);
 			productName = SBSample;
 			productReference = 249BEE502CBF48460023FA8F /* SBSample.app */;
@@ -218,6 +221,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */,
+				24DA63362E7A7A93005B0C1B /* XCRemoteSwiftPackageReference "SnapKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 249BEE512CBF48460023FA8F /* Products */;
@@ -312,6 +316,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -341,6 +346,7 @@
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportsDocumentBrowser = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -594,6 +600,14 @@
 				minimumVersion = 0.5.3;
 			};
 		};
+		24DA63362E7A7A93005B0C1B /* XCRemoteSwiftPackageReference "SnapKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SnapKit/SnapKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.7.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -606,6 +620,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2421DA702E15F82E00D7E4FD /* XCRemoteSwiftPackageReference "LogMacro" */;
 			productName = LogMacro;
+		};
+		24DA63372E7A7A93005B0C1B /* SnapKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 24DA63362E7A7A93005B0C1B /* XCRemoteSwiftPackageReference "SnapKit" */;
+			productName = SnapKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

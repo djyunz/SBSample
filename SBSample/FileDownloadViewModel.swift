@@ -11,32 +11,41 @@ import LogMacro
 @MainActor
 @Logging
 final class FileDownloadViewModel: ObservableObject {
-    @Published var progress: Double = 0.0
-    @Published var downloadedFilePath: String?
+    @Published var downloadItems: [DownloadItem] = []
 
     func startDownload(urlString: String) {
-        downloadedFilePath = nil
-        progress = 0.0
+        guard let url = URL(string: urlString) else {
+            #mlog("Invalid URL: \(urlString)")
+            return
+        }
+
+        let newItem = DownloadItem(url: url)
+        downloadItems.append(newItem)
 
         Task {
-            do {
-                let stream = FileDownloadService.shared.downloadFile(urlString: urlString)
-                for try await event in stream {
-                    switch event {
-                    case let .progress(value):
-                        await MainActor.run {
-                            self.progress = value
-                        }
-                    case let .finished(location):
-                        await MainActor.run {
-                            self.progress = 1.0
-                            self.downloadedFilePath = location.absoluteString
-                        }
+            await self.processDownload(for: newItem)
+        }
+    }
+
+    private func processDownload(for item: DownloadItem) async {
+        await MainActor.run { item.state = .downloading }
+        do {
+            let stream = FileDownloadService.shared.downloadFile(url: item.url)
+            for try await event in stream {
+                switch event {
+                case let .progress(value):
+                    await MainActor.run { item.progress = value }
+                case let .finished(location):
+                    await MainActor.run {
+                        item.progress = 1.0
+                        item.state = .finished
+                        item.localFileLocation = location
                     }
                 }
-            } catch {
-                #mlog("다운로드 에러: \(error)")
             }
+        } catch {
+            #mlog("Download failed for \(item.url.absoluteString): \(error)")
+            await MainActor.run { item.state = .failed(error) }
         }
     }
 }

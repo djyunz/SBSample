@@ -15,9 +15,9 @@ import WebKit
 @Logging
 class ViewController: UIViewController {
     let data: HeartData = .init(beatsPerMinute: 120)
-
-    private var viewModel = FileDownloadViewModel()
-    private var cancellables: Set<AnyCancellable> = []
+    
+    // ViewController가 ViewModel을 소유합니다.
+    private let viewModel = FileDownloadViewModel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -58,23 +58,6 @@ class ViewController: UIViewController {
         // 웹뷰에서 뒤로가기, 앞으로가기 제스처를 허용합니다.
         webView.allowsBackForwardNavigationGestures = true
 
-        let progressView: UIProgressView = {
-            let view = UIProgressView()
-            view.backgroundColor = .orange
-            view.progress = 0.1
-            view.progressViewStyle = .bar
-            return view
-        }()
-        view.addSubview(progressView)
-        progressView.snp.makeConstraints { make in
-            make.top.equalTo(self.view.safeAreaLayoutGuide).offset(55)
-            make.leading.trailing.equalTo(self.view.safeAreaLayoutGuide)
-        }
-
-        viewModel.$progress.sink { progress in
-            progressView.setProgress(Float(progress), animated: true)
-        }.store(in: &cancellables)
-
         // 웹 페이지를 로드합니다.
         if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGift.pdf") {
             let request = URLRequest(url: url)
@@ -108,7 +91,8 @@ class ViewController: UIViewController {
             make.centerX.equalTo(self.view.safeAreaLayoutGuide)
         }
 
-        let fileDownloadView = FileDownloadView().background(Color.green)
+        // FileDownloadView를 생성할 때 viewModel을 전달합니다.
+        let fileDownloadView = FileDownloadView(viewModel: self.viewModel).background(Color.green)
         let fileDownloadViewController = UIHostingController(rootView: fileDownloadView)
         self.addChild(fileDownloadViewController)
         self.view.addSubview(fileDownloadViewController.view)
@@ -136,11 +120,11 @@ extension ViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
         #mlog("decidePolicyFor navigationAction: \(navigationAction)")
-        if true == navigationAction.targetFrame?.isMainFrame {
-            if (navigationAction.request.url?.absoluteString.contains("firsthand/download.do")) ?? false {
-                viewModel.startDownload(urlString: navigationAction.request.url?.absoluteString ?? "")
-                return .cancel
-            }
+        if let urlString = navigationAction.request.url?.absoluteString,
+           urlString.contains("firsthand/download.do") {
+            // ViewController가 소유한 viewModel의 메서드를 직접 호출합니다.
+            viewModel.startDownload(urlString: urlString)
+            return .cancel
         }
         return .allow
     }

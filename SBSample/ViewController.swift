@@ -1,36 +1,38 @@
-//
-//  ViewController.swift
-//  SBSample
-//
-//  Created by Durk Jae Yun on 10/16/24.
-//
-
 import Combine
 import LogMacro
 import SnapKit
 import SwiftUI
 import UIKit
 import WebKit
+import QuickLook // QuickLook 프레임워크를 추가합니다.
 
 @Logging
-class ViewController: UIViewController {
-    let data: HeartData = .init(beatsPerMinute: 120)
+// WKDownloadDelegate와 QLPreviewControllerDataSource 프로토콜을 추가합니다.
+class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, QLPreviewControllerDataSource {
     
-    // ViewController가 ViewModel을 소유합니다.
+    let data: HeartData = .init(beatsPerMinute: 120)
     private let viewModel = FileDownloadViewModel()
+    
+    // 다운로드된 파일의 URL을 저장할 프로퍼티를 추가합니다.
+    private var downloadedFileURL: URL?
+    private var webView: WKWebView!
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // WKWebView 를 self.view 에 추가 합니다.
         let configuration = WKWebViewConfiguration()
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        view.addSubview(webView)
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        
+        webView = WKWebView(frame: .zero, configuration: configuration)
+        
+        // 웹뷰가 다른 SwiftUI 뷰 뒤에 위치하도록 하고, 투명하게 만듭니다.
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        view.insertSubview(webView, at: 0)
 
-        // 웹뷰의 크기를 자동으로 조정하도록 설정합니다.
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
-        // 디버깅을 위해 웹뷰를 검사할 수 있도록 설정합니다.
         if #available(iOS 16.4, *) {
             webView.isInspectable = true
         }
@@ -38,7 +40,6 @@ class ViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow(_:)), name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
 
-        // 웹뷰를 상단 하단 Safe Area 에 맞춰 배치합니다.
         webView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -47,23 +48,17 @@ class ViewController: UIViewController {
             webView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
         ])
 
-        // 웹뷰 페이지 링크로 이동이 가능하도록 설정합니다.
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        // 웹뷰에서 JavaScript 를 실행할 수 있도록 설정합니다.
-        webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        // 웹뷰에서 팝업 창을 열 수 있도록 설정합니다.
-        webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
-        // 웹뷰에서 뒤로가기, 앞으로가기 제스처를 허용합니다.
         webView.allowsBackForwardNavigationGestures = true
 
-        // 웹 페이지를 로드합니다.
-//        if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGiftdfsdfs.pdf") {
-        if let url = URL(string:"https://www.shillahotels.com/membership/resources/images/download/shilla_rewards_guide_ko.pdf") {
+        // 테스트 URL을 수정합니다.
+        if let url = URL(string: "https://www.shilla.net/seoul/firsthand/download.do?filePath=notice&fileName=PB_SpecialGift.pdf") {
             let request = URLRequest(url: url)
             webView.load(request)
         }
 
+        // --- 기존 SwiftUI 뷰 설정은 그대로 유지합니다. ---
         let swiftUIView = SwiftUIView().background(Color.red).onTapGesture {
             let nextVC = UIHostingController(rootView: SwiftUIView().background(Color.blue))
             self.present(nextVC, animated: true)
@@ -91,7 +86,6 @@ class ViewController: UIViewController {
             make.centerX.equalTo(self.view.safeAreaLayoutGuide)
         }
 
-        // FileDownloadView를 생성할 때 viewModel을 전달합니다.
         let fileDownloadView = FileDownloadView(viewModel: self.viewModel).background(Color.green)
         let fileDownloadViewController = UIHostingController(rootView: fileDownloadView)
         self.addChild(fileDownloadViewController)
@@ -108,43 +102,135 @@ class ViewController: UIViewController {
     }
 }
 
-extension ViewController: WKNavigationDelegate {
-    // 웹 페이지 로딩이 완료되면 호출됩니다.
+// MARK: - WKNavigationDelegate
+extension ViewController {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         #mlog("웹 페이지 로딩 완료")
     }
 
-    // 웹 페이지 로딩 중 오류가 발생하면 호출됩니다.
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         #mlog("웹 페이지 로딩 실패: \(error.localizedDescription)")
     }
-
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
-        #mlog("decidePolicyFor navigationAction: \(navigationAction)")
-        if let urlString = navigationAction.request.url?.absoluteString,
-           urlString.contains("firsthand/download.do") || urlString.contains("/download/") {
-            // ViewController가 소유한 viewModel의 메서드를 직접 호출합니다.
-            viewModel.startDownload(urlString: urlString)
-            return .cancel
+    
+    // 기존 async 버전을 삭제하고, 하위 버전 호환을 위해 decisionHandler 버전으로 교체합니다.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        // 외부 앱 링크(tel:, mailto: 등)를 처리합니다.
+        if let url = navigationAction.request.url,
+           !["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            decisionHandler(.cancel)
+            return
         }
-        return .allow
+        decisionHandler(.allow)
+    }
+
+    // navigationResponse 델리게이트에서 다운로드를 분기 처리합니다.
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        guard let response = navigationResponse.response as? HTTPURLResponse,
+              let url = response.url else {
+            decisionHandler(.allow)
+            return
+        }
+
+        let disp = (response.allHeaderFields["Content-Disposition"] as? String ?? "").lowercased()
+        let type = (response.allHeaderFields["Content-Type"] as? String ?? "").lowercased()
+
+        // 다운로드할 파일인지 확인합니다.
+        if disp.contains("attachment") || type.contains("application/pdf") {
+            // iOS 14.5 이상인 경우에만 .download 정책을 사용합니다.
+            if #available(iOS 14.5, *) {
+                #mlog("iOS 14.5+ 감지. WKDownloadDelegate를 사용합니다.")
+                decisionHandler(.download)
+            } else {
+                // 그 이전 버전에서는 기존 방식을 사용합니다.
+                #mlog("구버전 iOS 감지. FileDownloadViewModel을 사용합니다.")
+                viewModel.startDownload(urlString: url.absoluteString)
+                decisionHandler(.cancel)
+            }
+            return
+        }
+        
+        decisionHandler(.allow)
+    }
+    
+    // iOS 14.5 이상에서만 호출됩니다.
+    @available(iOS 14.5, *)
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        download.delegate = self
+    }
+    
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let nsError = error as NSError
+        if nsError.domain == "WebKitErrorDomain" && nsError.code == 102 {
+            return
+        }
+        #mlog("Provisional navigation failed: \(error.localizedDescription)")
     }
 }
 
-extension ViewController: WKUIDelegate {
+// MARK: - WKUIDelegate
+extension ViewController {
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        // 새 창을 열 때 호출되는 메소드입니다.
         if navigationAction.targetFrame == nil {
-            // 새 창을 열려고 할 때, 현재 웹뷰에서 링크를 열도록 설정합니다.
             if let url = navigationAction.request.url {
                 webView.load(URLRequest(url: url))
             }
         }
-        // 여기서는 새 창을 열지 않고 nil을 반환하여 기본 동작을 방지합니다.
         return nil
     }
 }
 
+// MARK: - WKDownloadDelegate (iOS 14.5+ 전용)
+@available(iOS 14.5, *)
+extension ViewController {
+    func download(_ download: WKDownload,
+                  decideDestinationUsing response: URLResponse,
+                  suggestedFilename: String,
+                  completionHandler: @escaping (URL?) -> Void) {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent(suggestedFilename)
+        
+        try? FileManager.default.removeItem(at: fileURL)
+
+        self.downloadedFileURL = fileURL
+        #mlog("다운로드 경로 설정: \(fileURL.path)")
+        completionHandler(fileURL)
+    }
+
+    func downloadDidFinish(_ download: WKDownload) {
+        guard let fileURL = self.downloadedFileURL else {
+            #mlog("다운로드 완료되었으나 파일 URL이 없습니다.")
+            return
+        }
+        #mlog("다운로드 성공: \(fileURL.path)")
+        DispatchQueue.main.async {
+            let preview = QLPreviewController()
+            preview.dataSource = self
+            self.present(preview, animated: true)
+        }
+    }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+        #mlog("다운로드 실패: \(error.localizedDescription)")
+    }
+}
+
+// MARK: - QLPreviewControllerDataSource (iOS 14.5+ 전용)
+@available(iOS 14.5, *)
+extension ViewController {
+    func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        return downloadedFileURL == nil ? 0 : 1
+    }
+
+    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        guard let url = downloadedFileURL else {
+            fatalError("미리보기할 파일 URL이 없습니다.")
+        }
+        return url as QLPreviewItem
+    }
+}
+
+// MARK: - Keyboard Handling
 extension ViewController {
     @objc
     func keyboardWillShow(_ notification: Notification) {

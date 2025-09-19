@@ -54,12 +54,12 @@ extension FileDownloadService {
             return
         }
 
-        guard (200...299).contains(response.statusCode) else {
+        guard (200 ... 299).contains(response.statusCode) else {
             let error = NSError(domain: "HTTPError", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: "Download failed with status code: \(response.statusCode)"])
             finishWithError(error, for: downloadTask)
             return
         }
-        
+
         if response.expectedContentLength == 0 {
             let error = NSError(domain: "DownloadError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Content-Length is 0"])
             finishWithError(error, for: downloadTask)
@@ -78,7 +78,9 @@ extension FileDownloadService {
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        let progress = if totalBytesExpectedToWrite > 0 {
+            Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        } else { 0.0 }
         #mlog("Task \(downloadTask.taskIdentifier): Downloading: \(totalBytesWritten / 1024 / 1024)MB of \(totalBytesExpectedToWrite / 1024 / 1024)MB, \(String(format: "%.0f", progress * 100))%")
         continuations[downloadTask.taskIdentifier]?.yield(.progress(progress))
     }
@@ -92,7 +94,7 @@ extension FileDownloadService {
             continuations.removeValue(forKey: task.taskIdentifier)
         }
     }
-    
+
     private func finishWithError(_ error: Error, for task: URLSessionTask) {
         continuations[task.taskIdentifier]?.finish(throwing: error)
         continuations.removeValue(forKey: task.taskIdentifier)

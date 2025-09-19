@@ -55,3 +55,27 @@
     2.  **`Content-Type` 옵셔널 검사:** `downloadFile` 함수가 `expectedContentType`을 옵셔널 파라미터로 받도록 수정했습니다.
     3.  `FileDownloadViewModel`에서는 URL의 확장자를 기반으로 `expectedContentType`을 유추하여 `FileDownloadService`로 전달합니다.
     4.  `FileDownloadService`는 이 `expectedContentType` 값이 존재할 경우에만 실제 응답의 `Content-Type`과 일치하는지 검사하여, 일치하지 않으면 에러 처리합니다.
+
+## 4. WKWebView 파일 다운로드 기능 구현 및 개선 (Commit: `2035a45`)
+
+### 요약
+`WKWebView`에서 PDF 등 첨부파일 다운로드 기능을 구현하고, iOS 버전에 따라 다른 다운로드 방식을 적용하도록 개선했습니다. 또한, 구버전 다운로드 방식의 UI를 개선하여 사용자 경험을 향상시켰습니다.
+
+### 주요 변경 사항
+
+- **`ViewController.swift`**
+  - `WKNavigationDelegate`의 `webView(_:decidePolicyFor:navigationResponse:)`를 사용하여 서버 응답 헤더(`Content-Type`, `Content-Disposition`)를 확인합니다.
+  - 파일이 다운로드 대상일 경우, iOS 14.5 이상에서는 `.download` 정책을 사용하여 `WKDownloadDelegate` 플로우를 따릅니다.
+  - iOS 14.5 미만에서는 기존 `FileDownloadViewModel`을 호출하여 다운로드를 처리하는 하위 호환성을 유지합니다.
+  - `WKDownloadDelegate`와 `QLPreviewControllerDataSource` 프로토콜을 채택하고 관련 델리게이트 메서드를 구현했습니다.
+
+- **`FileDownloadView.swift`**
+  - 기존 다운로드 방식(iOS 14.5 미만)으로 다운로드가 완료된 항목에 '파일 보기' 버튼을 추가했습니다.
+  - SwiftUI에서 `QLPreviewController`를 사용하기 위한 `UIViewControllerRepresentable` 래퍼(`QuickLookPreview`)를 구현했습니다.
+  - '파일 보기' 버튼 클릭 시 `.sheet` 모디파이어를 통해 `QuickLookPreview`를 표시합니다.
+
+- **`FileDownloadService.swift`**
+  - 다운로드 진행률 계산 시 `totalBytesExpectedToWrite`가 0일 경우 0으로 나누기 오류가 발생하는 것을 방지하는 예외 처리를 추가하여 안정성을 높였습니다.
+
+### 해결 과정 (Troubleshooting)
+- **빌드 오류 해결:** 초기 제안했던 커스텀 `View` extension 방식이 `#available` 구문과 호환되지 않아 빌드 오류가 발생했습니다. 이 문제를 해결하기 위해 해당 extension을 삭제하고, SwiftUI의 표준 방식인 `if #available(...)` 구문을 `View` 본문에 직접 사용하는 방식으로 코드를 수정하여 안정성을 확보했습니다.

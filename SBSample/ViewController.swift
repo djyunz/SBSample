@@ -14,7 +14,7 @@ class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKDo
     private let viewModel = FileDownloadViewModel()
     
     // 다운로드된 파일의 URL을 저장할 프로퍼티를 추가합니다.
-    private var downloadedFileURL: URL?
+    private var previewingURL: URL?
     private var webView: WKWebView!
 
     override func viewDidLoad() {
@@ -183,6 +183,22 @@ extension ViewController {
 // MARK: - WKDownloadDelegate (iOS 14.5+ 전용)
 @available(iOS 14.5, *)
 extension ViewController {
+    // 여러 동시 다운로드를 처리하기 위해 WKDownload와 DownloadItem을 매핑하는 딕셔너리
+    private static var downloadItemsKey: UInt8 = 0
+    private var downloadItems: [WKDownload: DownloadItem] {
+        get {
+            if let items = objc_getAssociatedObject(self, &Self.downloadItemsKey) as? [WKDownload: DownloadItem] {
+                return items
+            }
+            let newItems = [WKDownload: DownloadItem]()
+            objc_setAssociatedObject(self, &Self.downloadItemsKey, newItems, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            return newItems
+        }
+        set {
+            objc_setAssociatedObject(self, &Self.downloadItemsKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
     func download(_ download: WKDownload,
                   decideDestinationUsing response: URLResponse,
                   suggestedFilename: String,
@@ -192,38 +208,81 @@ extension ViewController {
         
         try? FileManager.default.removeItem(at: fileURL)
 
-        self.downloadedFileURL = fileURL
         #mlog("다운로드 경로 설정: \(fileURL.path)")
+        
+        // 새로운 DownloadItem을 생성하고 ViewModel과 딕셔너리에 추가합니다.
+        if let url = download.originalRequest?.url {
+            let newItem = DownloadItem(url: url)
+            // 목적지 URL을 생성 시점에 바로 저장합니다.
+            newItem.localFileLocation = fileURL
+            self.downloadItems[download] = newItem
+            DispatchQueue.main.async {
+                self.viewModel.downloadItems.append(newItem)
+                newItem.state = .downloading
+            }
+        }
+        
         completionHandler(fileURL)
+    }
+    
+    // 다운로드 진행 상태를 업데이트하는 델리게이트 메소드
+    func download(_ download: WKDownload, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        let progress = if totalBytesExpectedToWrite > 0 {
+            Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        } else { 0.0 }
+        
+        #mlog("WKDownloadDelegate: Downloading, \(String(format: "%.2f", progress * 100))%")
+        
+        if let item = self.downloadItems[download] {
+            DispatchQueue.main.async {
+                item.progress = progress
+            }
+        }
     }
 
     func downloadDidFinish(_ download: WKDownload) {
-        guard let fileURL = self.downloadedFileURL else {
-            #mlog("다운로드 완료되었으나 파일 URL이 없습니다.")
-            return
+        if let item = self.downloadItems[download], let fileURL = item.localFileLocation {
+            #mlog("다운로드 성공: \(fileURL.path)")
+            DispatchQueue.main.async {
+                item.progress = 1.0
+                item.state = .finished
+                
+                // 미리보기할 URL을 설정하고 컨트롤러를 표시합니다.
+                // self.previewingURL = fileURL
+                // let preview = QLPreviewController()
+                // preview.dataSource = self
+                // self.present(preview, animated: true)
+            }
+        } else {
+            #mlog("다운로드 완료되었으나 파일 정보를 찾을 수 없습니다.")
+            if let item = self.downloadItems[download] {
+                DispatchQueue.main.async {
+                    item.state = .failed(NSError(domain: "DownloadError", code: -1, userInfo: [NSLocalizedDescriptionKey: "File URL not found after download."]))
+                }
+            }
         }
-        #mlog("다운로드 성공: \(fileURL.path)")
-        DispatchQueue.main.async {
-            let preview = QLPreviewController()
-            preview.dataSource = self
-            self.present(preview, animated: true)
-        }
+        self.downloadItems.removeValue(forKey: download)
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         #mlog("다운로드 실패: \(error.localizedDescription)")
+        if let item = self.downloadItems[download] {
+            DispatchQueue.main.async {
+                item.state = .failed(error)
+            }
+        }
+        self.downloadItems.removeValue(forKey: download)
     }
 }
 
-// MARK: - QLPreviewControllerDataSource (iOS 14.5+ 전용)
-@available(iOS 14.5, *)
+// MARK: - QLPreviewControllerDataSource
 extension ViewController {
     func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
-        return downloadedFileURL == nil ? 0 : 1
+        return previewingURL == nil ? 0 : 1
     }
 
     func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
-        guard let url = downloadedFileURL else {
+        guard let url = previewingURL else {
             fatalError("미리보기할 파일 URL이 없습니다.")
         }
         return url as QLPreviewItem

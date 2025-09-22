@@ -79,3 +79,26 @@
 
 ### 해결 과정 (Troubleshooting)
 - **빌드 오류 해결:** 초기 제안했던 커스텀 `View` extension 방식이 `#available` 구문과 호환되지 않아 빌드 오류가 발생했습니다. 이 문제를 해결하기 위해 해당 extension을 삭제하고, SwiftUI의 표준 방식인 `if #available(...)` 구문을 `View` 본문에 직접 사용하는 방식으로 코드를 수정하여 안정성을 확보했습니다.
+
+## 5. WKWebView 다운로드 진행 상태 통합 및 버그 수정 (Commit: `f9e9a5f`)
+
+### 요약
+`WKWebView`에서 시작된 파일 다운로드의 진행 상태를 `FileDownloadViewModel`과 통합하여 모든 iOS 버전에서 일관된 진행률 표시 및 파일 관리를 가능하게 했습니다. 초기 구현 과정에서 발생한 버그를 수정하고 불필요한 코드를 정리했습니다.
+
+### 주요 변경 사항
+
+- **`ViewController.swift`**
+  - `WKDownloadDelegate` (iOS 14.5 이상)에서 여러 동시 다운로드를 정확히 추적하기 위해 `[WKDownload: DownloadItem]` 딕셔너리를 사용하여 `DownloadItem`을 관리하도록 수정했습니다.
+  - `download(_:decideDestinationUsing:suggestedFilename:completionHandler:)` 메서드에서 다운로드 목적지 URL을 `DownloadItem`의 `localFileLocation`에 즉시 저장하도록 수정하여, 다운로드 완료 후 파일 경로를 찾지 못하는 버그를 해결했습니다.
+  - `downloadDidFinish(_:)` 및 `download(_:didFailWithError:resumeData:)` 메서드에서 `DownloadItem`의 상태를 정확히 업데이트하도록 로직을 개선했습니다.
+  - `QLPreviewController` 사용 시 `downloadedFileURL` 인스턴스 프로퍼티 대신 `DownloadItem`의 `localFileLocation`을 직접 사용하도록 수정하여 다중 다운로드 시 발생할 수 있는 문제를 방지했습니다.
+
+- **불필요한 파일 및 코드 정리**
+  - 초기 통합 시도 과정에서 생성되었던 `SBSample/WebView.swift` 파일을 삭제했습니다.
+  - `SBSample/SwiftUIView.swift` 파일의 내용을 원래 상태로 복원했습니다.
+
+### 해결 과정 (Troubleshooting)
+- **빌드 오류 및 "파일 정보를 찾을 수 없음" 오류 해결:**
+  - `WebView.swift` 파일과 `SwiftUIView.swift`의 불필요한 수정 내용이 빌드 오류를 유발하여 이를 제거했습니다.
+  - `WKDownloadDelegate`를 통한 다운로드 완료 시 `DownloadItem`에 파일 경로가 제대로 저장되지 않아 "다운로드는 완료되었으나 파일 정보를 찾을 수 없음" 메시지가 발생하는 버그를 수정했습니다. 이는 `decideDestinationUsing` 메서드에서 `DownloadItem.localFileLocation`에 파일 경로를 명시적으로 할당함으로써 해결되었습니다.
+- **WKDownload 진행률 표시 문제:** `WKDownload`의 진행률이 0%에서 바로 100%로 넘어가는 것처럼 보이는 현상에 대해 설명하고, 이는 파일 크기, 네트워크 속도, 시스템 처리 방식 등에 따른 정상적인 동작임을 안내했습니다. 큰 파일 다운로드 시 UX 개선을 위한 방안(불확정 진행률 표시)을 제안했습니다.

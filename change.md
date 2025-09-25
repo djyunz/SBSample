@@ -1,3 +1,19 @@
+## 6. 다운로드 로직 리팩토링 및 통일 (Commit: 5a7f329)
+
+### 대화 내용 요약
+
+- **문제 제기:** `WKDownloadDelegate`는 다운로드 진행률을 세밀하게 추적하는 기능을 제공하지 않는다는 점을 지적하며, 진행률 표시가 필수적인 기능일 경우 `WKDownload`를 사용하지 않는 것이 더 나은 접근 방식이 아닌지 질문했습니다.
+- **해결 방안 논의:** `WKDownload`의 한계를 인정하고, 다운로드 진행률 추적, 백그라운드 다운로드, 세밀한 제어 등 모든 면에서 우수한 `URLSession`을 사용하는 것이 표준적이고 올바른 방법임을 확인했습니다.
+- **요청 사항:** 이에 따라, 프로젝트 내에서 iOS 14.5 버전을 기준으로 `WKDownloadDelegate`를 사용하도록 분기 처리된 코드를 모두 제거하고, 모든 OS 버전에서 `URLSession` 기반의 `FileDownloadService`를 사용하도록 코드를 통일해달라고 요청했습니다.
+
+### 주요 코드 변경사항
+
+- **`ViewController.swift` (리팩토링):**
+  - `WKDownloadDelegate` 프로토콜 채택을 제거했습니다.
+  - `webView(_:decidePolicyFor:navigationResponse:)` 메서드 내의 iOS 14.5 버전 분기 로직(`if #available`)을 삭제했습니다.
+  - 이제 `Content-Disposition` 또는 `Content-Type` 헤더를 통해 다운로드로 판단되는 모든 요청은 버전에 관계없이 `FileDownloadViewModel`의 `startDownload` 메서드를 호출하여 `URLSession` 기반으로 처리됩니다.
+  - `WKDownloadDelegate` 관련 델리게이트 메서드와 `extension`이 모두 삭제되어 코드가 단순화되었습니다.
+
 # 변경사항 요약 (2025-09-17)
 
 ## 1. WKWebView 파일 다운로드 기능 추가 (Commit: `09749a1`)

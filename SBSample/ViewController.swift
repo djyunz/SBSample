@@ -7,8 +7,8 @@ import WebKit
 import QuickLook // QuickLook 프레임워크를 추가합니다.
 
 @Logging
-// WKDownloadDelegate와 QLPreviewControllerDataSource 프로토콜을 추가합니다.
-class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, QLPreviewControllerDataSource {
+// QLPreviewControllerDataSource 프로토콜을 추가합니다.
+class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, QLPreviewControllerDataSource {
     
     let data: HeartData = .init(beatsPerMinute: 120)
     private let viewModel = FileDownloadViewModel()
@@ -137,26 +137,14 @@ extension ViewController {
 
         // 다운로드할 파일인지 확인합니다.
         if disp.contains("attachment") || type.contains("application/pdf") {
-            // iOS 14.5 이상인 경우에만 .download 정책을 사용합니다.
-            if #available(iOS 14.5, *) {
-                #mlog("iOS 14.5+ 감지. WKDownloadDelegate를 사용합니다.")
-                decisionHandler(.download)
-            } else {
-                // 그 이전 버전에서는 기존 방식을 사용합니다.
-                #mlog("구버전 iOS 감지. FileDownloadViewModel을 사용합니다.")
-                viewModel.startDownload(urlString: url.absoluteString)
-                decisionHandler(.cancel)
-            }
+            // iOS 버전에 관계없이 FileDownloadViewModel을 사용합니다.
+            #mlog("다운로드 트리거 감지. FileDownloadViewModel을 사용합니다.")
+            viewModel.startDownload(urlString: url.absoluteString)
+            decisionHandler(.cancel)
             return
         }
         
         decisionHandler(.allow)
-    }
-    
-    // iOS 14.5 이상에서만 호출됩니다.
-    @available(iOS 14.5, *)
-    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
-        download.delegate = self
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -177,101 +165,6 @@ extension ViewController {
             }
         }
         return nil
-    }
-}
-
-// MARK: - WKDownloadDelegate (iOS 14.5+ 전용)
-@available(iOS 14.5, *)
-extension ViewController {
-    // 여러 동시 다운로드를 처리하기 위해 WKDownload와 DownloadItem을 매핑하는 딕셔너리
-    private static var downloadItemsKey: UInt8 = 0
-    private var downloadItems: [WKDownload: DownloadItem] {
-        get {
-            if let items = objc_getAssociatedObject(self, &Self.downloadItemsKey) as? [WKDownload: DownloadItem] {
-                return items
-            }
-            let newItems = [WKDownload: DownloadItem]()
-            objc_setAssociatedObject(self, &Self.downloadItemsKey, newItems, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            return newItems
-        }
-        set {
-            objc_setAssociatedObject(self, &Self.downloadItemsKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
-    }
-
-    func download(_ download: WKDownload,
-                  decideDestinationUsing response: URLResponse,
-                  suggestedFilename: String,
-                  completionHandler: @escaping (URL?) -> Void) {
-        let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent(suggestedFilename)
-        
-        try? FileManager.default.removeItem(at: fileURL)
-
-        #mlog("다운로드 경로 설정: \(fileURL.path)")
-        
-        // 새로운 DownloadItem을 생성하고 ViewModel과 딕셔너리에 추가합니다.
-        if let url = download.originalRequest?.url {
-            let newItem = DownloadItem(url: url)
-            // 목적지 URL을 생성 시점에 바로 저장합니다.
-            newItem.localFileLocation = fileURL
-            self.downloadItems[download] = newItem
-            DispatchQueue.main.async {
-                self.viewModel.downloadItems.append(newItem)
-                newItem.state = .downloading
-            }
-        }
-        
-        completionHandler(fileURL)
-    }
-    
-    // 다운로드 진행 상태를 업데이트하는 델리게이트 메소드
-    func download(_ download: WKDownload, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        let progress = if totalBytesExpectedToWrite > 0 {
-            Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        } else { 0.0 }
-        
-        #mlog("WKDownloadDelegate: Downloading, \(String(format: "%.2f", progress * 100))%")
-        
-        if let item = self.downloadItems[download] {
-            DispatchQueue.main.async {
-                item.progress = progress
-            }
-        }
-    }
-
-    func downloadDidFinish(_ download: WKDownload) {
-        if let item = self.downloadItems[download], let fileURL = item.localFileLocation {
-            #mlog("다운로드 성공: \(fileURL.path)")
-            DispatchQueue.main.async {
-                item.progress = 1.0
-                item.state = .finished
-                
-                // 미리보기할 URL을 설정하고 컨트롤러를 표시합니다.
-                // self.previewingURL = fileURL
-                // let preview = QLPreviewController()
-                // preview.dataSource = self
-                // self.present(preview, animated: true)
-            }
-        } else {
-            #mlog("다운로드 완료되었으나 파일 정보를 찾을 수 없습니다.")
-            if let item = self.downloadItems[download] {
-                DispatchQueue.main.async {
-                    item.state = .failed(NSError(domain: "DownloadError", code: -1, userInfo: [NSLocalizedDescriptionKey: "File URL not found after download."]))
-                }
-            }
-        }
-        self.downloadItems.removeValue(forKey: download)
-    }
-
-    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        #mlog("다운로드 실패: \(error.localizedDescription)")
-        if let item = self.downloadItems[download] {
-            DispatchQueue.main.async {
-                item.state = .failed(error)
-            }
-        }
-        self.downloadItems.removeValue(forKey: download)
     }
 }
 

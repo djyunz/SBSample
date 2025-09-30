@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dsoft2025/LogMacro",
       "state" : {
-        "revision" : "190c1e76632a9c6b1bf0785519f72df872486934",
-        "version" : "0.5.3"
+        "revision" : "ea7cdc83b0bf2caf0c895b5a4e5567bbca2b9352",
+        "version" : "0.5.5"
       }
     },
     {
